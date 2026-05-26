@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Kotak CC → Odoo</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+:root{--red:#e8192c;--red-dim:#b01020;--bg:#0e1117;--surface:#161b24;--surface2:#1e2534;--border:#2a3347;--text:#e8ecf4;--muted:#6b7a96;--accent:#3b82f6;--green:#22c55e;--amber:#f59e0b;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);font-size:13px;overflow:hidden;height:100vh;display:flex;flex-direction:column;}
+#appHeader{background:var(--surface);border-bottom:1px solid var(--border);padding:0 20px;display:flex;align-items:center;gap:14px;height:50px;flex-shrink:0;}
+.logo-mark{width:28px;height:28px;background:var(--red);border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:#fff;flex-shrink:0;}
+#appHeader h1{font-size:14px;font-weight:600;}
+#appHeader .sub{font-size:11px;color:var(--muted);}
+.hdr-right{margin-left:auto;display:flex;gap:8px;align-items:center;}
+.badge{background:var(--surface2);border:1px solid var(--border);padding:2px 9px;border-radius:20px;font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;}
+.file-chip{display:inline-flex;align-items:center;gap:5px;background:rgba(232,25,44,0.1);border:1px solid rgba(232,25,44,0.2);border-radius:20px;padding:2px 9px;font-size:11px;color:#f87171;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.conn-pill{display:inline-flex;align-items:center;gap:5px;border-radius:20px;padding:2px 9px;font-size:11px;}
+.conn-pill.on{background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.25);color:var(--green);}
+.conn-pill.off{background:rgba(107,122,150,0.12);border:1px solid var(--border);color:var(--muted);}
+#mainTabs{display:flex;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;}
+.main-tab{padding:10px 20px;font-size:12px;font-weight:500;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;transition:all 0.15s;user-select:none;}
+.main-tab:hover{color:var(--text);}
+.main-tab.active{color:var(--text);border-bottom-color:var(--red);}
+#tabPages{flex:1;overflow:hidden;display:flex;flex-direction:column;}
+.tab-page{display:none;flex:1;overflow:hidden;flex-direction:column;}
+.tab-page.active{display:flex;}
+#stmtToolbar{background:var(--bg);border-bottom:1px solid var(--border);padding:7px 20px;display:none;align-items:center;gap:10px;flex-wrap:wrap;flex-shrink:0;}
+.jrnl-box{display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 10px;}
+.jrnl-box label{font-size:11px;color:var(--muted);white-space:nowrap;}
+.jrnl-box input{background:transparent;border:none;outline:none;font-family:inherit;font-size:12px;color:var(--text);width:180px;}
+.btn{padding:5px 13px;border-radius:6px;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:500;display:flex;align-items:center;gap:5px;transition:all 0.15s;white-space:nowrap;}
+.btn:disabled{opacity:0.4;cursor:not-allowed;}
+.btn-ghost{background:var(--surface2);color:var(--text);border:1px solid var(--border);}
+.btn-ghost:hover:not(:disabled){border-color:var(--muted);}
+.btn-green{background:#16a34a;color:#fff;}
+.btn-green:hover:not(:disabled){background:#15803d;}
+.btn-red-soft{background:rgba(232,25,44,0.12);color:#f87171;border:1px solid rgba(232,25,44,0.2);}
+.btn-blue{background:var(--accent);color:#fff;}
+.btn-blue:hover:not(:disabled){background:#2563eb;}
+#stmtScroll{flex:1;overflow:auto;padding:16px 20px;}
+.upload-zone{border:2px dashed var(--border);border-radius:12px;padding:44px 24px;text-align:center;cursor:pointer;transition:all 0.2s;background:var(--surface);position:relative;margin-bottom:16px;}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--red);background:rgba(232,25,44,0.04);}
+.upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.upload-zone h3{font-size:15px;font-weight:600;margin-bottom:5px;}
+.upload-zone p{color:var(--muted);font-size:12px;}
+#statusBar{display:none;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:10px 14px;margin-bottom:14px;align-items:center;gap:10px;}
+.spinner{width:15px;height:15px;border:2px solid var(--border);border-top-color:var(--red);border-radius:50%;animation:spin 0.7s linear infinite;flex-shrink:0;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.prog-bar{height:3px;background:var(--border);border-radius:2px;flex:1;}
+.prog-fill{height:100%;background:var(--red);border-radius:2px;transition:width 0.3s;}
+.err-box{color:#f87171;font-size:12px;background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.2);border-radius:8px;padding:9px 14px;margin-bottom:12px;display:none;}
+.table-wrap{border:1px solid var(--border);border-radius:10px;overflow:auto;background:var(--surface);}
+table{width:100%;border-collapse:collapse;min-width:1280px;}
+thead th{position:sticky;top:0;z-index:50;background:var(--surface2);padding:8px 9px;text-align:left;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid var(--border);white-space:nowrap;}
+tbody tr{border-bottom:1px solid rgba(42,51,71,0.4);}
+tbody tr:hover{background:rgba(255,255,255,0.02);}
+tbody tr.pushed{background:rgba(34,197,94,0.05);}
+tbody tr.push-err{background:rgba(248,113,113,0.06);}
+td{padding:4px 7px;vertical-align:middle;}
+tfoot td{padding:8px 9px;background:var(--surface2);border-top:2px solid var(--border);font-weight:600;position:sticky;bottom:0;}
+.row-num{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);width:24px;text-align:center;}
+.cell-date input{background:transparent;border:1px solid transparent;border-radius:4px;padding:3px 4px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text);outline:none;width:90px;}
+.cell-date input:focus{border-color:var(--border);background:var(--surface2);}
+.cell-desc span{font-size:11px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:170px;}
+.cell-narr input,.cell-journal input{background:transparent;border:1px solid transparent;border-radius:4px;padding:3px 4px;font-size:11px;color:var(--text);outline:none;width:100%;font-family:inherit;}
+.cell-narr input:focus,.cell-journal input:focus{border-color:var(--border);background:var(--surface2);}
+.cell-amount{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:500;text-align:right;white-space:nowrap;padding-right:10px;}
+.dd-wrap{position:relative;min-width:180px;}
+.dd-input{background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:3px 7px;font-size:11px;color:var(--text);outline:none;width:100%;font-family:inherit;}
+.dd-input:focus{border-color:var(--accent);}
+.dd-list{position:fixed;background:#16213a;border:1px solid var(--border);border-radius:7px;z-index:9999;width:290px;max-height:180px;overflow-y:auto;box-shadow:0 8px 28px rgba(0,0,0,0.65);display:none;}
+.dd-list.open{display:block;}
+.dd-item{padding:5px 10px;cursor:pointer;font-size:11px;border-bottom:1px solid rgba(42,51,71,0.3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dd-item:hover,.dd-item.sel{background:rgba(59,130,246,0.18);color:#93c5fd;}
+.dd-code{font-family:'JetBrains Mono',monospace;font-size:10px;opacity:0.5;margin-right:3px;}
+#odooPage{padding:28px 32px;overflow-y:auto;}
+.settings-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;max-width:560px;margin-bottom:20px;}
+.settings-card h2{font-size:14px;font-weight:600;margin-bottom:4px;}
+.settings-card p{font-size:12px;color:var(--muted);margin-bottom:16px;}
+.form-row{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+.form-row label{font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;}
+.form-row input{background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:9px 12px;font-size:13px;color:var(--text);outline:none;font-family:inherit;width:100%;}
+.form-row input:focus{border-color:var(--accent);}
+.form-hint{font-size:11px;color:var(--muted);margin-top:3px;}
+.form-actions{display:flex;gap:10px;margin-top:6px;}
+.status-row{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-size:12px;margin-top:14px;}
+.loading-overlay{position:fixed;inset:0;background:rgba(14,17,23,0.85);z-index:10000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;}
+.loading-overlay .big-spin{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--red);border-radius:50%;animation:spin 0.8s linear infinite;}
+.loading-overlay p{color:var(--muted);font-size:13px;}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:var(--surface);}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+#toast{position:fixed;bottom:18px;right:18px;background:#1e2534;border:1px solid var(--green);border-radius:9px;padding:10px 16px;font-size:12px;color:var(--green);display:none;z-index:99999;}
+</style>
+</head>
+<body>
+
+<!-- Loading overlay while data loads -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="big-spin"></div>
+  <p id="loadingText">Loading accounts & contacts data…</p>
+</div>
+
+<div id="appHeader">
+  <div class="logo-mark">KK</div>
+  <div><h1>Kotak CC → Odoo</h1><span class="sub">Journal Entry Generator</span></div>
+  <div class="hdr-right">
+    <div id="fileChip" style="display:none" class="file-chip">📄 <span id="fileName"></span></div>
+    <div class="badge" id="txCount">0 tx</div>
+    <div class="conn-pill off" id="connPill"><span>Not connected</span></div>
+  </div>
+</div>
+
+<div id="mainTabs">
+  <div class="main-tab active" onclick="switchTab('stmt')">📋 CC Statement</div>
+  <div class="main-tab" onclick="switchTab('odoo')">🔗 Odoo Connection</div>
+</div>
+
+<div id="tabPages">
+  <div class="tab-page active" id="stmtPage">
+    <div id="stmtToolbar">
+      <span style="font-size:12px;color:var(--muted)">✓ <strong id="txNum" style="color:var(--text)">0</strong> transactions</span>
+      <div class="jrnl-box"><label>Journal:</label><input type="text" id="globalJournal" value="Miscellaneous Operations"/></div>
+      <button class="btn btn-ghost" onclick="applyGlobalJournal()">↓ Apply to All</button>
+      <button class="btn btn-green" onclick="exportXLSX()">⬇ Export XLSX</button>
+      <button class="btn btn-blue" id="pushBtn" onclick="pushToOdoo()" disabled>⬆ Push to Odoo</button>
+      <button class="btn btn-red-soft" onclick="clearAll()">✕ Clear</button>
+    </div>
+    <div id="stmtScroll">
+      <div class="upload-zone" id="dropZone">
+        <input type="file" id="pdfInput" accept=".pdf"/>
+        <div style="font-size:38px;margin-bottom:10px">📋</div>
+        <h3>Drop Kotak CC Statement PDF here</h3>
+        <p>or click to browse · Works offline · Any number of transactions</p>
+      </div>
+      <div id="statusBar"><div class="spinner"></div><span id="statusText">Reading…</span><div class="prog-bar"><div class="prog-fill" id="progFill" style="width:0%"></div></div></div>
+      <div class="err-box" id="errBox"></div>
+      <div class="table-wrap" id="tableWrap" style="display:none">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:22px">#</th>
+              <th style="width:90px">Date</th>
+              <th style="width:170px">Description</th>
+              <th style="width:165px">Narration</th>
+              <th style="width:200px">Partner</th>
+              <th style="width:210px">Debit Account</th>
+              <th style="width:210px">Credit Account</th>
+              <th style="width:145px">Journal</th>
+              <th style="width:105px;text-align:right">Amount ₹</th>
+            </tr>
+          </thead>
+          <tbody id="txBody"></tbody>
+          <tfoot><tr><td colspan="8" style="color:var(--muted);font-size:11px">Total</td><td class="cell-amount" id="totalAmt">₹0.00</td></tr></tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-page" id="odooPage">
+    <div style="padding:28px 32px;overflow-y:auto;flex:1">
+      <div class="settings-card">
+        <h2>🔗 Odoo Connection</h2>
+        <p>Enter your Odoo instance details. Saved in your browser's local storage.</p>
+        <div class="form-row"><label>Odoo URL</label><input type="text" id="odooUrl" placeholder="https://yourcompany.odoo.com"/><span class="form-hint">Include https://</span></div>
+        <div class="form-row"><label>Database</label><input type="text" id="odooDB" placeholder="yourdb"/></div>
+        <div class="form-row"><label>Email</label><input type="text" id="odooUser" placeholder="admin@company.com"/></div>
+        <div class="form-row"><label>Password</label><input type="password" id="odooPass"/></div>
+        <div class="form-actions">
+          <button class="btn btn-blue" onclick="testConnection()">🔌 Test & Save</button>
+        </div>
+        <div class="status-row" id="connStatusRow" style="display:none">
+          <span id="connStatusIcon">⏳</span><span id="connStatusText">Testing…</span>
+        </div>
+      </div>
+      <div class="settings-card">
+        <h2>ℹ️ How it works</h2>
+        <p style="margin:0;line-height:1.9;color:var(--muted)">
+          1. Upload PDF → transactions auto-extracted<br>
+          2. Connect Odoo above → <strong style="color:var(--text)">Push to Odoo</strong> button activates<br>
+          3. Each transaction → draft <strong style="color:var(--text)">Journal Entry</strong> in Odoo<br>
+          4. Review in Odoo → Accounting → Journal Entries → Post<br>
+          Note: CORS must be enabled on your Odoo server for browser push to work
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const DEFAULT_DR = "130001 Creditors";
+const DEFAULT_CR = "124104 Kotak Corporate Credit Card  KOL (RBR)";
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+let ACCOUNTS = [], CONTACTS = [];
+let transactions = [], ddSelIdx = -1, odooSession = null;
+
+// ── LOAD DATA FROM JSON FILES ─────────────────────────────────────────────
+async function loadData() {
+  const overlay = document.getElementById('loadingOverlay');
+  const loadTxt = document.getElementById('loadingText');
+  try {
+    loadTxt.textContent = 'Loading accounts…';
+    const ar = await fetch('accounts.json');
+    ACCOUNTS = await ar.json();
+
+    loadTxt.textContent = 'Loading contacts (1/5)…';
+    const chunks = await Promise.all([0,1,2,3,4].map(i => {
+      document.getElementById('loadingText').textContent = 'Loading contacts (' + (i+1) + '/5)…';
+      return fetch('contacts_' + i + '.json').then(r => r.json());
+    }));
+    CONTACTS = chunks.flat();
+    CONTACTS.sort((a,b) => a[0].localeCompare(b[0]));
+
+    overlay.style.display = 'none';
+    loadSavedOdoo();
+  } catch(err) {
+    loadTxt.textContent = '⚠ Data load failed: ' + err.message + ' — PDF parsing still works, dropdowns may be empty.';
+    loadTxt.style.color = '#f87171';
+    setTimeout(() => overlay.style.display = 'none', 3000);
+  }
+}
+
+// ── TABS ──────────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.main-tab').forEach((t,i) => t.classList.toggle('active', ['stmt','odoo'][i]===tab));
+  document.querySelectorAll('.tab-page').forEach(p => p.classList.remove('active'));
+  document.getElementById(tab==='stmt'?'stmtPage':'odooPage').classList.add('active');
+}
+
+// ── ODOO SETTINGS ─────────────────────────────────────────────────────────
+function loadSavedOdoo() {
+  const s = JSON.parse(localStorage.getItem('odoo_cfg') || '{}');
+  if(s.url)  document.getElementById('odooUrl').value  = s.url;
+  if(s.db)   document.getElementById('odooDB').value   = s.db;
+  if(s.user) document.getElementById('odooUser').value = s.user;
+  if(s.pass) document.getElementById('odooPass').value = s.pass;
+  if(s.url && s.db && s.user && s.pass) autoConnect();
+}
+
+async function testConnection() {
+  const row = document.getElementById('connStatusRow');
+  row.style.display = 'flex';
+  document.getElementById('connStatusIcon').textContent = '⏳';
+  document.getElementById('connStatusText').textContent = 'Connecting…';
+  const result = await connectOdoo();
+  if(result.ok) {
+    document.getElementById('connStatusIcon').textContent = '✅';
+    document.getElementById('connStatusText').textContent = 'Connected as ' + result.name;
+    setConnected(true, result.name);
+    localStorage.setItem('odoo_cfg', JSON.stringify({
+      url:  document.getElementById('odooUrl').value.trim(),
+      db:   document.getElementById('odooDB').value.trim(),
+      user: document.getElementById('odooUser').value.trim(),
+      pass: document.getElementById('odooPass').value
+    }));
+    toast('✓ Connected & saved');
+  } else {
+    document.getElementById('connStatusIcon').textContent = '❌';
+    document.getElementById('connStatusText').textContent = 'Failed: ' + result.error;
+    setConnected(false);
+  }
+}
+
+async function autoConnect() {
+  const r = await connectOdoo();
+  if(r.ok) setConnected(true, r.name);
+}
+
+async function connectOdoo() {
+  const url  = document.getElementById('odooUrl').value.trim().replace(/\/+$/,'');
+  const db   = document.getElementById('odooDB').value.trim();
+  const user = document.getElementById('odooUser').value.trim();
+  const pass = document.getElementById('odooPass').value;
+  if(!url||!db||!user||!pass) return {ok:false, error:'Fill all fields'};
+  try {
+    const r = await fetch(url+'/web/session/authenticate', {
+      method:'POST', credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({jsonrpc:'2.0',method:'call',id:1,params:{db,login:user,password:pass}})
+    });
+    const j = await r.json();
+    if(j.result?.uid) {
+      odooSession = {url, db, uid:j.result.uid, name:j.result.name};
+      return {ok:true, uid:j.result.uid, name:j.result.name};
+    }
+    return {ok:false, error: j.error?.data?.message||'Auth failed'};
+  } catch(e) { return {ok:false, error:e.message}; }
+}
+
+function setConnected(on, name='') {
+  const p = document.getElementById('connPill');
+  p.className = 'conn-pill ' + (on?'on':'off');
+  p.querySelector('span').textContent = on ? '● '+name : 'Not connected';
+  document.getElementById('pushBtn').disabled = !on || !transactions.length;
+}
+
+// ── ODOO RPC ──────────────────────────────────────────────────────────────
+async function odooKw(model, method, args=[], kwargs={}) {
+  const r = await fetch(odooSession.url+'/web/dataset/call_kw', {
+    method:'POST', credentials:'include',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({jsonrpc:'2.0',method:'call',id:1,params:{model,method,args,kwargs}})
+  });
+  return r.json();
+}
+
+const jCache={}, aCache={};
+async function resolveJournal(name) {
+  if(jCache[name]) return jCache[name];
+  const r = await odooKw('account.journal','search_read',[[[['name','ilike',name]]]],{fields:['id'],limit:1});
+  if(!r.result?.length) throw new Error('Journal not found: '+name);
+  jCache[name]=r.result[0].id; return jCache[name];
+}
+async function resolveAccount(str) {
+  if(aCache[str]) return aCache[str];
+  const code = str.split(' ')[0];
+  const r = await odooKw('account.account','search_read',[[[['code','=',code]]]],{fields:['id'],limit:1});
+  if(!r.result?.length) throw new Error('Account not found: '+str);
+  aCache[str]=r.result[0].id; return aCache[str];
+}
+
+// ── PUSH TO ODOO ──────────────────────────────────────────────────────────
+async function pushToOdoo() {
+  if(!odooSession) { toast('Connect to Odoo first'); switchTab('odoo'); return; }
+  const btn = document.getElementById('pushBtn');
+  btn.disabled=true; btn.textContent='⏳ Pushing…';
+  let ok=0, fail=0;
+  for(let i=0; i<transactions.length; i++) {
+    const tx=transactions[i];
+    try {
+      const [jid, drid, crid] = await Promise.all([resolveJournal(tx.journal), resolveAccount(tx.drAccount), resolveAccount(tx.crAccount)]);
+      const [dd,mm,yyyy] = tx.date.split('-');
+      const res = await odooKw('account.move','create',[[{
+        move_type:'entry', date:`${yyyy}-${mm}-${dd}`, journal_id:jid, ref:tx.narration,
+        line_ids:[[0,0,{account_id:drid,name:tx.narration,debit:tx.amount,credit:0}],[0,0,{account_id:crid,name:tx.narration,debit:0,credit:tx.amount}]]
+      }]],{});
+      if(res.result) ok++;
+      else throw new Error(JSON.stringify(res.error));
+    } catch(e) { fail++; }
+  }
+  btn.disabled=false; btn.textContent='⬆ Push to Odoo';
+  document.getElementById('pushBtn').disabled = false;
+  toast('✓ '+ok+' created' + (fail ? ' · ❌ '+fail+' failed' : ''));
+  if(ok) switchTab('odoo');
+}
+
+// ── UPLOAD ────────────────────────────────────────────────────────────────
+const dropZone=document.getElementById('dropZone');
+const pdfInput=document.getElementById('pdfInput');
+pdfInput.addEventListener('change',e=>{if(e.target.files[0])handleFile(e.target.files[0]);});
+dropZone.addEventListener('dragover',e=>{e.preventDefault();dropZone.classList.add('drag');});
+dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('drag'));
+dropZone.addEventListener('drop',e=>{e.preventDefault();dropZone.classList.remove('drag');const f=e.dataTransfer.files[0];if(f&&f.type==='application/pdf')handleFile(f);});
+
+async function handleFile(file) {
+  dropZone.style.display='none';
+  document.getElementById('errBox').style.display='none';
+  document.getElementById('fileChip').style.display='flex';
+  document.getElementById('fileName').textContent=file.name;
+  showStatus('Reading PDF…',10);
+  try {
+    const ab=await file.arrayBuffer();
+    const pdf=await pdfjsLib.getDocument({data:ab}).promise;
+    const n=pdf.numPages; let allLines=[];
+    for(let p=1;p<=n;p++){
+      setProgress(10+(p/n)*70);showStatus('Scanning page '+p+' of '+n+'…',10+(p/n)*70);
+      const page=await pdf.getPage(p);const tc=await page.getTextContent();
+      allLines=allLines.concat(groupLines(tc.items));
+    }
+    showStatus('Parsing…',85);
+    const txs=parseKotak(allLines);
+    if(!txs.length){showErr('No transactions found.');document.getElementById('statusBar').style.display='none';return;}
+    showStatus('Done — '+txs.length+' transactions',100);
+    setTimeout(()=>document.getElementById('statusBar').style.display='none',800);
+    renderTable(txs);
+  } catch(err){showErr('Error: '+err.message);document.getElementById('statusBar').style.display='none';}
+}
+
+function groupLines(items){
+  if(!items.length)return[];
+  items.sort((a,b)=>{const dy=b.transform[5]-a.transform[5];if(Math.abs(dy)>2)return dy;return a.transform[4]-b.transform[4];});
+  const lines=[];let curY=items[0].transform[5],curLine=[];
+  for(const item of items){if(Math.abs(item.transform[5]-curY)>3){if(curLine.length)lines.push(curLine.map(i=>i.str).join(' ').trim());curLine=[item];curY=item.transform[5];}else curLine.push(item);}
+  if(curLine.length)lines.push(curLine.map(i=>i.str).join(' ').trim());
+  return lines.filter(l=>l.length>0);
+}
+
+function parseKotak(lines){
+  const SKIP=[/payment received/i,/total purchases/i,/primary card/i,/retail purchases/i,/account summary/i,/statement date/i,/statement period/i,/credit limit/i,/available credit/i,/amount due/i,/due date/i,/effective 1st/i,/please note/i,/update your/i,/may i help/i,/contact us/i,/net banking/i,/local call/i,/download app/i,/gstin\s*-/i,/customer relationship/i,/your kotak/i,/spends area/i,/^date\s/i,/transaction details/i,/previous amount/i,/purchases.*charges/i,/^payments/i,/mumbai\s+\d/i,/other fees/i];
+  const DATE=/^(\d{2}\/\d{2}\/\d{4})\s+/,AMT=/[₹\u20B9]([\d,]+\.\d{2})(Cr)?[\s]*$/;
+  const txs=[];
+  for(let line of lines){
+    line=line.trim();if(!line)continue;
+    const dm=line.match(DATE);if(!dm)continue;
+    if(SKIP.some(r=>r.test(line)))continue;
+    const am=line.match(AMT);if(!am)continue;
+    if(am[1]==='.00'||am[1]==='0.00')continue;
+    const amt=parseFloat(am[1].replace(/,/g,''));
+    if(!amt||amt===0||am[2]==='Cr')continue;
+    let desc=line.replace(DATE,'').replace(AMT,'').replace(/\b(Business to Business|Electronics|Telecom Utilities|Retail Goods|Telecom|Utilities|Services|Travel|Dining|Others)\b/g,'').replace(/\s{2,}/g,' ').trim();
+    desc=desc.replace(/\s+[A-Z]{2,3}\s+[A-Z]{2}\s*$/,'').replace(/\s+[A-Z]{2}\s*$/,'').trim();
+    if(!desc)desc='CC Transaction';
+    txs.push({date:dm[1],desc,amount:amt});
+  }
+  return txs;
+}
+
+function renderTable(txs){
+  const journal=document.getElementById('globalJournal').value;
+  transactions=txs.map((t,i)=>({id:i,date:t.date.replace(/\//g,'-'),desc:t.desc,narration:t.desc,partner:'',partnerId:'',drAccount:DEFAULT_DR,crAccount:DEFAULT_CR,journal,amount:t.amount}));
+  document.getElementById('txNum').textContent=transactions.length;
+  document.getElementById('txCount').textContent=transactions.length+' tx';
+  document.getElementById('stmtToolbar').style.display='flex';
+  document.getElementById('tableWrap').style.display='block';
+  document.getElementById('pushBtn').disabled=!odooSession;
+  rebuildTable();
+}
+
+function rebuildTable(){
+  const tbody=document.getElementById('txBody');tbody.innerHTML='';
+  let total=0;
+  transactions.forEach((tx,i)=>{
+    total+=tx.amount;
+    const tr=document.createElement('tr');tr.dataset.idx=i;
+    tr.innerHTML=`<td class="row-num">${i+1}</td><td class="cell-date"><input type="text" value="${e(tx.date)}" onchange="upd(${i},'date',this.value)"/></td><td class="cell-desc"><span title="${e(tx.desc)}">${e(tx.desc)}</span></td><td class="cell-narr"><input type="text" value="${e(tx.narration)}" onchange="upd(${i},'narration',this.value)" onkeydown="rowNav(event,${i})"/></td><td><div class="dd-wrap" id="pw-${i}">${ddF('p',i,tx.partner,'Search partner…')}</div></td><td><div class="dd-wrap" id="drw-${i}">${ddF('dr',i,tx.drAccount,'')}</div></td><td><div class="dd-wrap" id="crw-${i}">${ddF('cr',i,tx.crAccount,'')}</div></td><td class="cell-journal"><input type="text" value="${e(tx.journal)}" onchange="upd(${i},'journal',this.value)"/></td><td class="cell-amount">₹${tx.amount.toLocaleString('en-IN',{minimumFractionDigits:2})}</td>`;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('totalAmt').textContent='₹'+total.toLocaleString('en-IN',{minimumFractionDigits:2});
+}
+
+function ddF(side,idx,val,ph){return `<input class="dd-input" type="text" value="${e(val)}" data-idx="${idx}" data-side="${side}" placeholder="${ph}" oninput="filterDD(this)" onfocus="openDD(this)" onkeydown="keyDD(event,this)" onblur="blurDD(this)" autocomplete="off"/><div class="dd-list" id="ddl-${side}-${idx}"></div>`;}
+
+function openDD(inp){filterDD(inp);posDD(inp);}
+function posDD(inp){const{idx,side}=inp.dataset;const dd=document.getElementById('ddl-'+side+'-'+idx);const r=inp.getBoundingClientRect();dd.style.top=(r.bottom+window.scrollY+2)+'px';dd.style.left=(r.left+window.scrollX)+'px';dd.classList.add('open');}
+function blurDD(inp){setTimeout(()=>{const{idx,side}=inp.dataset;document.getElementById('ddl-'+side+'-'+idx).classList.remove('open');},200);}
+function filterDD(inp){
+  const{idx,side}=inp.dataset;const q=inp.value.toLowerCase().trim();
+  const dd=document.getElementById('ddl-'+side+'-'+idx);let items;
+  if(side==='p'){items=q?CONTACTS.filter(c=>c[0].toLowerCase().includes(q)).slice(0,80):CONTACTS.slice(0,60);dd.innerHTML=items.map(c=>`<div class="dd-item" data-val="${e(c[0])}" data-id="${e(c[1])}" onmousedown="pickDD(event,'p',${idx},'${c[0].replace(/'/g,"\'")}','${c[1].replace(/'/g,"\'")}')"> ${e(c[0])}</div>`).join('');}
+  else{items=q?ACCOUNTS.filter(a=>a.toLowerCase().includes(q)).slice(0,80):ACCOUNTS.slice(0,60);dd.innerHTML=items.map(a=>{const sp=a.indexOf(' ');const code=sp>0?a.substring(0,sp):'';const nm=sp>0?a.substring(sp+1):a;return`<div class="dd-item" data-val="${e(a)}" onmousedown="pickDD(event,'${side}',${idx},'${a.replace(/'/g,"\'")}','${a.replace(/'/g,"\'")}')"><span class="dd-code">${code}</span>${e(nm)}</div>`;}).join('');}
+  if(items.length)posDD(inp);else dd.classList.remove('open');
+}
+function pickDD(ev,side,idx,val,id){ev.preventDefault();const tx=transactions[idx];if(side==='p'){tx.partner=val;tx.partnerId=id;}else if(side==='dr')tx.drAccount=val;else tx.crAccount=val;document.getElementById((side==='p'?'pw':side==='dr'?'drw':'crw')+'-'+idx).querySelector('.dd-input').value=val;document.getElementById('ddl-'+side+'-'+idx).classList.remove('open');ddSelIdx=-1;}
+function keyDD(e,inp){const{idx,side}=inp.dataset;const dd=document.getElementById('ddl-'+side+'-'+idx);const items=dd.querySelectorAll('.dd-item');if(e.key==='ArrowDown'){e.preventDefault();ddSelIdx=Math.min(ddSelIdx+1,items.length-1);items.forEach((el,i)=>el.classList.toggle('sel',i===ddSelIdx));items[ddSelIdx]?.scrollIntoView({block:'nearest'});}else if(e.key==='ArrowUp'){e.preventDefault();ddSelIdx=Math.max(ddSelIdx-1,0);items.forEach((el,i)=>el.classList.toggle('sel',i===ddSelIdx));items[ddSelIdx]?.scrollIntoView({block:'nearest'});}else if(e.key==='Enter'){e.preventDefault();const sel=dd.querySelector('.dd-item.sel')||items[0];if(sel){pickDD({preventDefault:()=>{}},side,+idx,sel.dataset.val,sel.dataset.id||sel.dataset.val);const nxt=document.getElementById((side==='p'?'pw':side==='dr'?'drw':'crw')+'-'+(+idx+1));nxt?.querySelector('.dd-input')?.focus();}}else if(e.key==='Escape'||e.key==='Tab'){dd.classList.remove('open');ddSelIdx=-1;}else ddSelIdx=-1;}
+function rowNav(e,idx){if(e.key==='ArrowDown'||e.key==='Enter'){e.preventDefault();document.querySelector(`tr[data-idx="${idx+1}"] .cell-narr input`)?.focus();}else if(e.key==='ArrowUp'){e.preventDefault();document.querySelector(`tr[data-idx="${idx-1}"] .cell-narr input`)?.focus();}}
+function upd(idx,field,val){transactions[idx][field]=val;}
+function applyGlobalJournal(){const j=document.getElementById('globalJournal').value;transactions.forEach(t=>t.journal=j);rebuildTable();toast('Applied "'+j+'" to all rows');}
+
+function exportXLSX(){
+  if(!transactions.length)return;
+  const hdr=['Date','Journal','Journal Items/Partner/External ID','Journal Items/Account','Journal Items/Credit','Journal Items/Label','Journal Items/Debit'];
+  const rows=[hdr];
+  transactions.forEach(tx=>{const pid=tx.partnerId||tx.partner||'';rows.push([tx.date,tx.journal,pid,tx.drAccount,'',tx.narration,tx.amount.toFixed(2)]);rows.push(['','',pid,tx.crAccount,tx.amount.toFixed(2),'','']);});
+  const ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=[12,24,38,42,12,36,12].map(w=>({wch:w}));
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Journal Entries');
+  XLSX.writeFile(wb,'CC_Odoo_'+new Date().toISOString().slice(0,10)+'.xlsx');
+  toast('✓ Exported '+transactions.length+' entries');
+}
+
+function clearAll(){transactions=[];document.getElementById('txBody').innerHTML='';document.getElementById('stmtToolbar').style.display='none';document.getElementById('tableWrap').style.display='none';document.getElementById('dropZone').style.display='block';document.getElementById('fileChip').style.display='none';document.getElementById('txCount').textContent='0 tx';document.getElementById('pdfInput').value='';}
+function showStatus(msg,pct){document.getElementById('statusBar').style.display='flex';document.getElementById('statusText').textContent=msg;setProgress(pct);}
+function setProgress(p){document.getElementById('progFill').style.width=p+'%';}
+function showErr(msg){const el=document.getElementById('errBox');el.textContent=msg;el.style.display='block';}
+function e(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';setTimeout(()=>t.style.display='none',3000);}
+document.addEventListener('click',ev=>{if(!ev.target.closest('.dd-wrap'))document.querySelectorAll('.dd-list.open').forEach(d=>d.classList.remove('open'));});
+
+loadData();
+</script>
+</body>
+</html>
