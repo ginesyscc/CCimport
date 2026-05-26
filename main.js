@@ -31,7 +31,7 @@ function createWindow() {
       nodeIntegration: false
     }
   });
-  win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+  win.loadFile(path.join(__dirname, 'index.html'));
   // win.webContents.openDevTools(); // uncomment for debugging
 }
 
